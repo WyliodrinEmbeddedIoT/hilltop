@@ -1,0 +1,62 @@
+{
+    "_comment": "This is the configuration file for the Hilltop Runner. It is read at runtime to determine capabilities",
+    "runner_slug": "admin-runner",
+    "runner_api_key_path": "./runner_api_key.txt",
+    "broker_url": "https://tw.semaka.ro:2053",
+    "broker_socket_url": "wss://tw.semaka.ro:2053/ws",
+    "available_images": [
+        {
+            "name": "ubuntu:latest",
+            "image": "./images/Dockerfile.ubuntu",
+            "tag": "hilltop-ubuntu:latest"
+        },
+        {
+            "name": "esp:latest",
+            "image": "./images/Dockerfile.esp",
+            "tag": "hilltop-esp:latest"
+        },
+        {
+            "name": "nrf:latest",
+            "image": "./images/Dockerfile.nrf",
+            "tag": "hilltop-nrf:latest"
+        }
+    ],
+    "devices": [
+        {
+            "device_name": "nrf52840",
+            "vendor_id": "0x1366",
+            "product_id": "0x1061",
+            "serial": "001050231031"
+        },
+        {
+            "device_name": "esp-c3",
+            "vendor_id": "0x10c4",
+            "product_id": "0xea60",
+            "serial": "74b6a9e259a2f01197f62cb5d9065118"
+        }
+    ],
+    "hardware_configurations": [
+        {
+            "config_name": "dummy",
+            "devices": []
+        },
+        {
+            "config_name": "nrf52840",
+            "devices": [
+                {
+                    "device_name": "nrf52840",
+                    "device_passthrough": true
+                }
+            ]
+        },
+        {
+            "config_name": "esp-c3",
+            "devices": [
+                {
+                    "device_name": "esp-c3",
+                    "container_path": "/dev/ttyUSB0"
+                }
+            ]
+        }
+    ]
+}

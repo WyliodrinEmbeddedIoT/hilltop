@@ -1,0 +1,9 @@
+{
+    "image": "esp:latest",
+    "hardware": "esp-c3",
+    "stdout_artifact": true,
+    "stderr_artifact": true,
+    "artifacts": [
+        "./sample.txt"
+    ]
+}

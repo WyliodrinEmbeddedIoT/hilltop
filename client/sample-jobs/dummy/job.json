@@ -1,0 +1,9 @@
+{
+    "image": "ubuntu:latest",
+    "hardware": "dummy",
+    "stdout_artifact": true,
+    "stderr_artifact": true,
+    "artifacts": [
+        "./hello.txt"
+    ]
+}

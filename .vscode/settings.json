@@ -1,0 +1,7 @@
+{
+    "ltex.additionalRules.motherTongue": "en",
+    "ltex.language": "ro-RO",
+    "rust-analyzer.cargo.features": [
+        // "testing"
+    ]
+}

@@ -1,0 +1,15 @@
+FROM rust:latest
+
+RUN apt-get update && apt-get install -y \
+    socat \
+    netcat-openbsd \
+    unzip \
+    python3
+
+RUN cargo install --locked espflash
+
+RUN mkdir -p /workspace && mkdir -p /artifacts
+COPY ./runner-entry.py /runner-entry.py
+RUN chmod +x /runner-entry.py
+
+CMD ["/runner-entry.py"]

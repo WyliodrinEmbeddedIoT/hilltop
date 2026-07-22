@@ -1,0 +1,7 @@
+{
+    "image": "nrf:latest",
+    "hardware": "nrf52840",
+    "stdout_artifact": true,
+    "stderr_artifact": true,
+    "artifacts": []
+}

@@ -1,5 +1,7 @@
 use std::path::{Path, PathBuf};
 
+use tracing::warn;
+
 use crate::{
     config::{RunnerConfig, devices::HilltopDeviceDescriptor, hardware::HardwareConfig},
     job::error::HardwareError,
@@ -44,36 +46,45 @@ impl HardwareManager {
                 );
             };
 
-            let device_info = host_devices
-                .iter()
-                .find(|dev| {
-                    dev.product_id() == device_descriptor.product_id_u16().unwrap_or(0)
-                        && dev.vendor_id() == device_descriptor.vendor_id_u16().unwrap_or(0)
-                        && dev.serial_number().unwrap_or("") == device_descriptor.serial
-                })
-                .ok_or_else(|| {
-                    anyhow::anyhow!(
-                        "Failed to find USB device for hardware config '{}'",
-                        device_descriptor.device_name
-                    )
-                })?;
+            let device_info = host_devices.iter().find(|dev| {
+                dev.product_id() == device_descriptor.product_id_u16().unwrap_or(0)
+                    && dev.vendor_id() == device_descriptor.vendor_id_u16().unwrap_or(0)
+                    && dev.serial_number().unwrap_or("") == device_descriptor.serial
+            });
+            // Device not plugged in, skip it instead of crashing the runner
+            if !device_info.is_some() {
+                warn!(
+                    "Device '{}' not found, skipping",
+                    device_descriptor.device_name
+                );
+                continue;
+            }
 
-            let device = HardwareDevice::new(device_descriptor.clone(), device_info.clone())?;
+            let device =
+                HardwareDevice::new(device_descriptor.clone(), device_info.unwrap().clone())?;
             devices.push(device);
         }
 
         for hw_config in runner_config.hardware_configurations.iter() {
+            // Configs needing a missing device get dropped, not the whole runner
+            let mut configurations: Vec<HardwareConfig> = Vec::new();
+
             tracing::info!("Validating hardware config '{}'", hw_config.config_name);
+
+            let mut all_devices_available = true;
+
             for device_ref in hw_config.devices.iter() {
-                if !devices
+                let device_found = devices
                     .iter()
-                    .any(|d| d.descriptor.device_name == device_ref.device_name)
-                {
-                    anyhow::bail!(
-                        "Hardware config '{}' references unknown device '{}'",
-                        hw_config.config_name,
-                        device_ref.device_name
+                    .any(|d| d.descriptor.device_name == device_ref.device_name);
+                // Skip this config, not the whole runner
+                if !device_found {
+                    warn!(
+                        "Hardware config '{}' references unknown device '{}', skipping config",
+                        hw_config.config_name, device_ref.device_name
                     );
+                    all_devices_available = false;
+                    break;
                 }
 
                 let is_passthrough = device_ref.device_passthrough == Some(true);
@@ -90,6 +101,10 @@ impl HardwareManager {
                     ),
                     _ => {}
                 }
+            }
+
+            if all_devices_available {
+                configurations.push(hw_config.clone());
             }
         }
 

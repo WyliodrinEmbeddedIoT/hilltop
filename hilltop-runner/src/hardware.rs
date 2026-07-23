@@ -71,13 +71,13 @@ impl HardwareManager {
 
             tracing::info!("Validating hardware config '{}'", hw_config.config_name);
 
-            let mut all_devices_available = true;
+            let mut all_devices_available = true; //
 
             for device_ref in hw_config.devices.iter() {
                 let device_found = devices
                     .iter()
                     .any(|d| d.descriptor.device_name == device_ref.device_name);
-                // Skip this config, not the whole runner
+                // Skip this config
                 if !device_found {
                     warn!(
                         "Hardware config '{}' references unknown device '{}', skipping config",

@@ -229,18 +229,19 @@ pub async fn handle_next_job(
             }
             Err(e) => {
                 tracing::warn!("Failed to parse job metadata: {e:?}. Sending NEW_JOB_NACK");
+                let job_identifier = job_request.job_identifier.clone();
                 let nack = match e {
-                    JobMetadataError::FailedToParse(error) => {
-                        NewJobNack::failed_to_parse(format!("Failed to parse: {error}"))
+                    JobMetadataError::FailedToParse(_) => {
+                        NewJobNack::failed_to_parse(job_identifier)
                     }
-                    JobMetadataError::NonUtf8Metadata(utf8_error) => {
-                        NewJobNack::failed_to_parse(format!("Failed to parse: {utf8_error}"))
+                    JobMetadataError::NonUtf8Metadata(_) => {
+                        NewJobNack::failed_to_parse(job_identifier)
                     }
-                    JobMetadataError::InvalidImage { image } => {
-                        NewJobNack::invalid_image(format!("Invalid image: {image}"))
+                    JobMetadataError::InvalidImage { .. } => {
+                        NewJobNack::invalid_image(job_identifier)
                     }
-                    JobMetadataError::InvalidHardware { hardware } => {
-                        NewJobNack::invalid_hardware(format!("Invalid hardware: {hardware}"))
+                    JobMetadataError::InvalidHardware { .. } => {
+                        NewJobNack::invalid_hardware(job_identifier)
                     }
                 };
 

@@ -65,6 +65,7 @@ impl HardwareManager {
             devices.push(device);
         }
         let mut configurations: Vec<HardwareConfig> = Vec::new();
+
         for hw_config in runner_config.hardware_configurations.iter() {
             // Configs needing a missing device get dropped, not the whole runner
 

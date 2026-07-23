@@ -64,10 +64,9 @@ impl HardwareManager {
                 HardwareDevice::new(device_descriptor.clone(), device_info.unwrap().clone())?;
             devices.push(device);
         }
-
+        let mut configurations: Vec<HardwareConfig> = Vec::new();
         for hw_config in runner_config.hardware_configurations.iter() {
             // Configs needing a missing device get dropped, not the whole runner
-            let mut configurations: Vec<HardwareConfig> = Vec::new();
 
             tracing::info!("Validating hardware config '{}'", hw_config.config_name);
 
@@ -110,7 +109,7 @@ impl HardwareManager {
 
         Ok(Self {
             devices,
-            configurations: runner_config.hardware_configurations.clone(),
+            configurations,
         })
     }
 

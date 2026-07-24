@@ -52,7 +52,7 @@ impl HardwareManager {
                     && dev.serial_number().unwrap_or("") == device_descriptor.serial
             });
             // Device not plugged in, skip it instead of crashing the runner
-            if !device_info.is_some() {
+            if device_info.is_none() {
                 warn!(
                     "Device '{}' not found, skipping",
                     device_descriptor.device_name

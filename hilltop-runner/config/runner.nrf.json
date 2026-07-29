@@ -19,6 +19,11 @@
             "name": "nrf:latest",
             "image": "./images/Dockerfile.nrf",
             "tag": "hilltop-nrf:latest"
+        },
+        {
+            "name": "stm:latest",
+            "image":"./images/Dockerfile.stm",
+            "tag": "hilltop-stm:latest"
         }
     ],
     "devices": [

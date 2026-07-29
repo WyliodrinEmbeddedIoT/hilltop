@@ -2,8 +2,8 @@
     "_comment": "This is the configuration file for the Hilltop Runner. It is read at runtime to determine capabilities",
     "runner_slug": "admin-runner",
     "runner_api_key_path": "./runner_api_key.txt",
-    "broker_url": "http://localhost:5288",
-    "broker_socket_url": "ws://localhost:5288/ws",
+    "broker_url": "https://tw.semaka.ro:2053",
+    "broker_socket_url": "wss://tw.semaka.ro:2053/ws",
     "available_images": [
         {
             "name": "ubuntu:latest",
@@ -33,10 +33,10 @@
     ],
     "devices": [
         {
-            "device_name": "esp-c3",
-            "vendor_id": "0x10c4",
-            "product_id": "0xea60",
-            "serial": "74b6a9e259a2f01197f62cb5d9065118"
+            "device_name": "microbitv2",
+            "vendor_id": "0x0d28",
+            "product_id": "0x0204",
+            "serial": "9904360259004e45005e300300000027000000009796990b"
         }
     ],
     "hardware_configurations": [
@@ -45,11 +45,11 @@
             "devices": []
         },
         {
-            "config_name": "esp-c3",
+            "config_name": "microbitv2",
             "devices": [
                 {
-                    "device_name": "esp-c3",
-                    "container_path": "/dev/ttyUSB0"
+                    "device_name": "microbitv2",
+                    "device_passthrough": true
                 }
             ]
         }

@@ -54,9 +54,9 @@
             "device_name": "stm32u545",
             "vendor_id": "0x0483",
             "product_id": "0x374e",
-            "serial": "004100423133511435333335"
+            "serial": "002F00173133510636303739"
         },
-        {   
+        {
             "device_name": "stm32f429zi",
             "vendor_id": "0x0483",
             "product_id": "0x374b",

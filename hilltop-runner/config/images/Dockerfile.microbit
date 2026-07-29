@@ -1,27 +1,7 @@
 FROM hil-base:nightly
 
-RUN apt-get update && apt-get install -y \
-    socat \
-    netcat-openbsd \
-    unzip \
-    python3 \
-    make \
-    pipx \
-    openocd \
-    stlink-tools
-
-RUN pipx ensurepath
-RUN pipx install tockloader
-RUN pipx ensurepath
-RUN cargo install --locked probe-rs-tools
-
 RUN mkdir -p /workspace && mkdir -p /artifacts
 COPY ./runner-entry.py /runner-entry.py
 RUN chmod +x /runner-entry.py
 
-SHELL ["/bin/bash", "-c"]
-
-RUN echo 'export PATH="$HOME/.local/bin:$PATH"' >> /root/.bashrc
-RUN source /root/.bashrc
-
-CMD ["/bin/bash", "-c", "source /root/.bashrc && python3 /runner-entry.py"]
+CMD ["/runner-entry.py"]

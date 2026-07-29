@@ -1,0 +1,45 @@
+# ==========================================
+# STAGE 1: Compile OpenOCD Nightly
+# ==========================================
+FROM debian:trixie-slim AS builder
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential git libtool pkg-config autoconf automake \
+    libusb-1.0-0-dev libhidapi-dev
+
+# Clone and build OpenOCD
+WORKDIR /src
+RUN git clone --depth 1 https://github.com/openocd-org/openocd.git .
+RUN ./bootstrap && \
+    ./configure --prefix=/opt/openocd && \
+    make -j4 && \
+    make install
+
+# ==========================================
+# STAGE 2: Lightweight HIL Base Image
+# ==========================================
+FROM debian:trixie-slim
+
+# Install runtime USB libraries, Python (for tockloader), and Rust dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libusb-1.0-0 libhidapi-hidraw0 python3 python3-pip python3-venv \
+    curl ca-certificates udev && \
+    rm -rf /var/lib/apt/lists/*
+
+# Bring in OpenOCD from the builder stage
+COPY --from=builder /opt/openocd /opt/openocd
+ENV PATH="/opt/openocd/bin:${PATH}"
+
+# Setup Python venv and install tockloader
+ENV VIRTUAL_ENV=/opt/venv
+RUN python3 -m venv $VIRTUAL_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+RUN pip install --no-cache-dir tockloader
+
+# Install Rust (Required if your rig compiles tock firmware locally)
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+WORKDIR /workspace
+CMD ["/bin/bash"]

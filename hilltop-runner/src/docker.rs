@@ -23,9 +23,29 @@ pub async fn create_docker_config() -> anyhow::Result<Configuration> {
     let version_info = crate::api::apis::system_api::system_version(&config).await?;
     let api_version = version_info.api_version.as_deref().unwrap_or("unknown");
 
-    if api_version != crate::api::API_VERSION {
+    // The generated client is pinned to a minimum API version. Docker daemons
+    // are generally backwards compatible, so a newer daemon can serve an
+    // older, versioned API endpoint. Reject only daemons that are too old.
+    let parse_api_version = |version: &str| -> Option<(u32, u32)> {
+        let mut parts = version.split('.');
+        Some((parts.next()?.parse().ok()?, parts.next()?.parse().ok()?))
+    };
+
+    let expected_version = parse_api_version(crate::api::API_VERSION)
+        .ok_or_else(|| anyhow::anyhow!("Invalid configured Docker API version: {}", crate::api::API_VERSION))?;
+    let actual_version = parse_api_version(api_version)
+        .ok_or_else(|| anyhow::anyhow!("Invalid Docker API version returned by daemon: {api_version}"))?;
+
+    if actual_version < expected_version {
         anyhow::bail!(
-            "Unsupported Docker API version: {api_version}. Expected {}",
+            "Unsupported Docker API version: {api_version}. Need at least {}",
+            crate::api::API_VERSION
+        );
+    }
+
+    if actual_version > expected_version {
+        tracing::warn!(
+            "Docker daemon API version {api_version} is newer than the generated client API {}; using the older compatible API",
             crate::api::API_VERSION
         );
     }

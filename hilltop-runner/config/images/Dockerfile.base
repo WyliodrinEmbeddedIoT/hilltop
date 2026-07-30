@@ -1,0 +1,54 @@
+# ==========================================
+# STAGE 1: Compile OpenOCD Nightly
+# ==========================================
+FROM debian:trixie-slim AS builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential git libtool pkg-config autoconf automake \
+    libusb-1.0-0-dev libhidapi-dev libjaylink-dev libftdi1-dev ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /src
+# 1. Do a normal clone first
+RUN git clone https://github.com/openocd-org/openocd.git .
+# 2. Explicitly pull in the submodules (jimtcl and libjaylink)
+RUN git submodule update --init --recursive
+
+RUN ./bootstrap && \
+    ./configure \
+      --prefix=/opt/openocd \
+      --enable-internal-jimtcl \
+      --enable-ftdi \
+      --enable-jlink \
+      --enable-stlink \
+      --enable-cmsis-dap && \
+    make -j$(nproc) && \
+    make install
+
+# ==========================================
+# STAGE 2: The HIL Toolchain Base
+# (Keep your existing Stage 2 exactly as it is)
+# ==========================================
+FROM debian:trixie-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libusb-1.0-0-dev libudev-dev pkg-config build-essential \
+    libhidapi-hidraw0 python3 git pipx curl ca-certificates udev \
+    socat netcat-openbsd unzip make stlink-tools \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /opt/openocd /opt/openocd
+ENV PATH="/opt/openocd/bin:${PATH}"
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+RUN cargo install --locked probe-rs-tools && \
+    cargo install --locked espflash
+
+ENV PIPX_HOME=/opt/pipx
+ENV PIPX_BIN_DIR=/usr/local/bin
+RUN pipx install tockloader
+
+WORKDIR /workspace
+CMD ["/bin/bash"]

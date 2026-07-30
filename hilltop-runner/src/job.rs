@@ -188,6 +188,8 @@ impl Job {
             .clone();
 
         let mut user_devices = Vec::new();
+        let mut probe_selectors = Vec::new();
+        let mut passthrough_device_metadata = Vec::new();
         for device_ref in hw_config.devices.iter() {
             let device_descriptor = docker
                 .hardware_manager_mut()
@@ -202,21 +204,55 @@ impl Job {
                 })?;
 
             if device_ref.device_passthrough == Some(true) {
-                    let bus = device_descriptor.bus_path().to_path_buf();
-                    user_devices.push(UserDevice {
-                        dev_host_path: bus.clone(),
-                        container_path: bus,
-                    });
-                } else {
-                    let container_path = device_ref.container_path.as_ref()
-                        .expect("container_path validated at startup");
-                    user_devices.push(UserDevice {
-                        dev_host_path: device_descriptor.dev_path()
-                            .expect("dev_path validated at startup")
-                            .to_path_buf(),
-                        container_path: PathBuf::from(container_path),
-                    });
+                if let Some(selector) = device_descriptor.probe_selector() {
+                    probe_selectors.push(selector);
                 }
+                passthrough_device_metadata.push((
+                    device_descriptor.device_name().to_string(),
+                    device_descriptor.serial().to_string(),
+                    device_descriptor.probe_rs_chip().map(str::to_string),
+                    device_descriptor.tockloader_board().map(str::to_string),
+                ));
+                let bus = device_descriptor.bus_path().to_path_buf();
+                user_devices.push(UserDevice {
+                    dev_host_path: bus.clone(),
+                    container_path: bus,
+                });
+            } else {
+                let container_path = device_ref
+                    .container_path
+                    .as_ref()
+                    .expect("container_path validated at startup");
+                user_devices.push(UserDevice {
+                    dev_host_path: device_descriptor
+                        .dev_path()
+                        .expect("dev_path validated at startup")
+                        .to_path_buf(),
+                    container_path: PathBuf::from(container_path),
+                });
+            }
+        }
+
+        let mut container_environment = Vec::new();
+        if probe_selectors.len() == 1 {
+            container_environment.push(format!("HILLTOP_PROBE_SELECTOR={}", probe_selectors[0]));
+            if let Some((device_name, serial, probe_rs_chip, tockloader_board)) =
+                passthrough_device_metadata.first()
+            {
+                container_environment.push(format!("HILLTOP_BOARD={device_name}"));
+                container_environment.push(format!("HILLTOP_DEVICE_SERIAL={serial}"));
+                if let Some(chip) = probe_rs_chip {
+                    container_environment.push(format!("HILLTOP_PROBE_RS_CHIP={chip}"));
+                }
+                if let Some(board) = tockloader_board {
+                    container_environment.push(format!("HILLTOP_TOCKLOADER_BOARD={board}"));
+                }
+            }
+        } else if probe_selectors.len() > 1 {
+            tracing::warn!(
+                "Hardware configuration '{}' contains multiple passthrough devices; not setting HILLTOP_PROBE_SELECTOR",
+                hw_config.config_name
+            );
         }
 
         tracing::debug!(
@@ -233,6 +269,7 @@ impl Job {
             &container_name,
             &user_mounts,
             &user_devices,
+            &container_environment,
         )
         .await
         .map_err(|e| {

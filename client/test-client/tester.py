@@ -16,7 +16,7 @@ import websockets
 # Configuration
 # ---------------------------------------------------------------------------
 
-# TODO: get this via CLI args / or a json file 
+# TODO: get this via CLI args / or a json file
 BASE_URL = "https://tw.semaka.ro:2053"
 WS_URL = "wss://tw.semaka.ro:2053/ws"
 

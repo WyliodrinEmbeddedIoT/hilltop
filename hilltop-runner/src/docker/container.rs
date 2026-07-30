@@ -47,6 +47,7 @@ impl Container {
         container_name: &str,
         user_mounts: &[UserMount],
         user_devices: &[UserDevice],
+        environment: &[String],
     ) -> anyhow::Result<Self> {
         let mut mounts = Vec::new();
         for user_mount in user_mounts {
@@ -73,6 +74,9 @@ impl Container {
 
         let mut container_req = ContainerCreateRequest::new();
         container_req.image = Some(image_tag.to_string());
+        if !environment.is_empty() {
+            container_req.env = Some(environment.to_vec());
+        }
         container_req.host_config = Some(Box::new(host_config));
 
         let response = container_api::container_create(

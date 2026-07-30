@@ -33,12 +33,10 @@
     ],
     "devices": [
         {
-            "device_name": "nrf52840",
-            "vendor_id": "0x1366",
-            "product_id": "0x1061",
-            "serial": "001050231031",
-            "probe_rs_chip": "nRF52840_xxAA",
-            "tockloader_board": "nrf52840dk"
+            "device_name": "microbitv2",
+            "vendor_id": "0x0d28",
+            "product_id": "0x0204",
+            "serial": "9904360259004e45005e300300000027000000009796990b"
         }
     ],
     "hardware_configurations": [
@@ -47,10 +45,10 @@
             "devices": []
         },
         {
-            "config_name": "nrf52840",
+            "config_name": "microbitv2",
             "devices": [
                 {
-                    "device_name": "nrf52840",
+                    "device_name": "microbitv2",
                     "device_passthrough": true
                 }
             ]

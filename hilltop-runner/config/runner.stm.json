@@ -24,6 +24,11 @@
             "name": "stm:latest",
             "image":"./images/Dockerfile.stm",
             "tag": "hilltop-stm:latest"
+        },
+        {
+            "name": "microbit:latest",
+            "image":"./images/Dockerfile.microbit",
+            "tag":"hilltop-microbit:latest"
         }
     ],
     "devices": [

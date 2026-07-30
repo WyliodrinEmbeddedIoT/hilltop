@@ -10,6 +10,15 @@ pub struct HilltopDeviceDescriptor {
     /// Optional board name passed to board-specific tools such as tockloader.
     #[serde(default)]
     pub tockloader_board: Option<String>,
+    /// Relative Tock board directory, for example nordic/nrf52840dk.
+    #[serde(default)]
+    pub board_dir: Option<String>,
+    /// Tock Make target used to flash the board.
+    #[serde(default)]
+    pub flash_target: Option<String>,
+    /// OpenOCD board configuration passed to tockloader.
+    #[serde(default)]
+    pub openocd_board: Option<String>,
 }
 
 impl HilltopDeviceDescriptor {

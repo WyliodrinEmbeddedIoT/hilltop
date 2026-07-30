@@ -212,6 +212,9 @@ impl Job {
                     device_descriptor.serial().to_string(),
                     device_descriptor.probe_rs_chip().map(str::to_string),
                     device_descriptor.tockloader_board().map(str::to_string),
+                    device_descriptor.board_dir().map(str::to_string),
+                    device_descriptor.flash_target().map(str::to_string),
+                    device_descriptor.openocd_board().map(str::to_string),
                 ));
                 let bus = device_descriptor.bus_path().to_path_buf();
                 user_devices.push(UserDevice {
@@ -236,7 +239,15 @@ impl Job {
         let mut container_environment = Vec::new();
         if probe_selectors.len() == 1 {
             container_environment.push(format!("HILLTOP_PROBE_SELECTOR={}", probe_selectors[0]));
-            if let Some((device_name, serial, probe_rs_chip, tockloader_board)) =
+            if let Some((
+                device_name,
+                serial,
+                probe_rs_chip,
+                tockloader_board,
+                board_dir,
+                flash_target,
+                openocd_board,
+            )) =
                 passthrough_device_metadata.first()
             {
                 container_environment.push(format!("HILLTOP_BOARD={device_name}"));
@@ -246,6 +257,16 @@ impl Job {
                 }
                 if let Some(board) = tockloader_board {
                     container_environment.push(format!("HILLTOP_TOCKLOADER_BOARD={board}"));
+                }
+                if let Some(board_dir) = board_dir {
+                    container_environment.push(format!("HILLTOP_BOARD_DIR={board_dir}"));
+                }
+                if let Some(flash_target) = flash_target {
+                    container_environment.push(format!("HILLTOP_FLASH_TARGET={flash_target}"));
+                }
+                if let Some(openocd_board) = openocd_board {
+                    container_environment
+                        .push(format!("HILLTOP_OPENOCD_BOARD={openocd_board}"));
                 }
             }
         } else if probe_selectors.len() > 1 {

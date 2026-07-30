@@ -278,6 +278,18 @@ impl HardwareDevice {
         self.descriptor.tockloader_board.as_deref()
     }
 
+    pub fn board_dir(&self) -> Option<&str> {
+        self.descriptor.board_dir.as_deref()
+    }
+
+    pub fn flash_target(&self) -> Option<&str> {
+        self.descriptor.flash_target.as_deref()
+    }
+
+    pub fn openocd_board(&self) -> Option<&str> {
+        self.descriptor.openocd_board.as_deref()
+    }
+
     /// Return the probe-rs selector for this configured USB device.
     ///
     /// probe-rs accepts selectors in VID:PID:SERIAL form. The serial comes

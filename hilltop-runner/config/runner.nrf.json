@@ -38,7 +38,10 @@
             "product_id": "0x1061",
             "serial": "001050231031",
             "probe_rs_chip": "nRF52840_xxAA",
-            "tockloader_board": "nrf52840dk"
+            "tockloader_board": "nrf52dk",
+            "board_dir": "nordic/nrf52840dk",
+            "flash_target": "flash-openocd",
+            "openocd_board": "jtag/nrf52840dk.cfg"
         }
     ],
     "hardware_configurations": [

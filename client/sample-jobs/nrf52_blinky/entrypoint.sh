@@ -6,6 +6,24 @@ echo "-=-=-= START NRF SAMPLE JOB =-=-=-"
 
 rustup target add thumbv7em-none-eabi
 cargo build --release
-timeout 20s cargo run --release || true
+
+if [[ -z "${HILLTOP_PROBE_SELECTOR:-}" ]]; then
+    echo "HILLTOP_PROBE_SELECTOR was not provided by the runner" >&2
+    exit 1
+fi
+
+set +e
+timeout 20s probe-rs run \
+    --chip nRF52840_xxAA \
+    --probe "$HILLTOP_PROBE_SELECTOR" \
+    target/thumbv7em-none-eabi/release/nrf52_blinky
+status=$?
+set -e
+
+# A continuously running blinky is expected to be terminated by timeout.
+# Any other non-zero status is a real programming/test failure.
+if [[ "$status" -ne 0 && "$status" -ne 124 ]]; then
+    exit "$status"
+fi
 
 echo "-=-=-= END NRF SAMPLE JOB =-=-=-"

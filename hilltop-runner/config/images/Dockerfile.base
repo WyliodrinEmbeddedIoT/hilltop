@@ -16,6 +16,7 @@ RUN git submodule update --init --recursive
 
 RUN ./bootstrap && \
     ./configure \
+      --prefix=/opt/openocd \
       --enable-internal-jimtcl \
       --enable-ftdi \
       --enable-jlink \

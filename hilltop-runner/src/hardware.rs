@@ -212,6 +212,7 @@ impl HardwareManager {
 pub struct HardwareDevice {
     descriptor: HilltopDeviceDescriptor,
     dev_path: Option<PathBuf>,
+    hidraw_paths: Vec<PathBuf>,
     bus_path: PathBuf,
     in_use: bool,
 }
@@ -230,6 +231,7 @@ impl HardwareDevice {
         let sys_path = device_info.sysfs_path().canonicalize().unwrap();
 
         let mut dev_path: Option<PathBuf> = None;
+        let mut hidraw_paths = Vec::new();
 
         for entry in std::fs::read_dir(Path::new("/sys/class/tty"))? {
             let entry = entry?;
@@ -246,9 +248,28 @@ impl HardwareDevice {
             }
         }
 
+        // HID-based tools such as tockloader-rs use /dev/hidraw rather than
+        // the USB bus node used by probe-rs. Find all HID interfaces belonging
+        // to this physical USB device so the runner can pass them through too.
+        if let Ok(entries) = std::fs::read_dir(Path::new("/sys/class/hidraw")) {
+            for entry in entries {
+                let entry = entry?;
+                let symlink_path = entry.path();
+                let resolved = symlink_path.canonicalize()?;
+
+                if resolved.starts_with(&sys_path) {
+                    let dev_name = symlink_path
+                        .file_name()
+                        .ok_or_else(|| anyhow::anyhow!("Invalid hidraw sysfs entry"))?;
+                    hidraw_paths.push(Path::new("/dev").join(dev_name));
+                }
+            }
+        }
+
         Ok(Self {
             descriptor,
             dev_path,
+            hidraw_paths,
             bus_path,
             in_use: false,
         })
@@ -260,6 +281,10 @@ impl HardwareDevice {
 
     pub fn bus_path(&self) -> &Path {
         &self.bus_path
+    }
+
+    pub fn hidraw_paths(&self) -> &[PathBuf] {
+        &self.hidraw_paths
     }
 
     pub fn device_name(&self) -> &str {

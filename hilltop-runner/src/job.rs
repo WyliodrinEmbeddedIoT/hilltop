@@ -224,6 +224,17 @@ impl Job {
                     dev_host_path: bus.clone(),
                     container_path: bus,
                 });
+                for hidraw_path in device_descriptor.hidraw_paths() {
+                    tracing::debug!(
+                        "Passing HID device {} through for board {}",
+                        hidraw_path.display(),
+                        device_descriptor.device_name()
+                    );
+                    user_devices.push(UserDevice {
+                        dev_host_path: hidraw_path.clone(),
+                        container_path: hidraw_path.clone(),
+                    });
+                }
             } else {
                 let container_path = device_ref
                     .container_path

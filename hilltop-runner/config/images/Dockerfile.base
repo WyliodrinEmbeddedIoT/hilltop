@@ -39,6 +39,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=builder /opt/openocd /opt/openocd
 ENV PATH="/opt/openocd/bin:${PATH}"
+RUN mkdir -p /opt/openocd/share/openocd/scripts/board/jtag && \
+    ln -s ../nordic_nrf52840_dk.cfg /opt/openocd/share/openocd/scripts/board/jtag/nrf52840dk.cfg && \
+    ln -s ../nordic_nrf52_dk.cfg /opt/openocd/share/openocd/scripts/board/jtag/nrf52dk.cfg
 
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"

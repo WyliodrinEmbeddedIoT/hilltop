@@ -276,6 +276,13 @@ impl Job {
             );
         }
 
+        if let Some(test_app) = &self.metadata.test_app {
+            container_environment.push(format!("HILLTOP_TEST_APP={test_app}"));
+        }
+        if let Some(test_app_name) = &self.metadata.test_app_name {
+            container_environment.push(format!("HILLTOP_TEST_APP_NAME={test_app_name}"));
+        }
+
         tracing::debug!(
             "Request to create container with tag {}, container name {}, user mounts {:?}, and devices {:?}",
             image_tag,

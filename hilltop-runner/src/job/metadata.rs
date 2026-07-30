@@ -12,6 +12,12 @@ pub struct JobMetadata {
     pub stderr_artifact: bool,
     #[serde(default)]
     pub artifacts: Vec<String>,
+    /// Path to the test application inside the job archive.
+    #[serde(default)]
+    pub test_app: Option<String>,
+    /// Expected application name in tockloader output.
+    #[serde(default)]
+    pub test_app_name: Option<String>,
 }
 
 impl JobMetadata {
@@ -45,6 +51,8 @@ impl JobMetadata {
             stdout_artifact: job_description.stdout_artifact,
             stderr_artifact: job_description.stderr_artifact,
             artifacts: job_description.artifacts,
+            test_app: job_description.test_app,
+            test_app_name: job_description.test_app_name,
         };
 
         metdata.validate(runner_config)?;

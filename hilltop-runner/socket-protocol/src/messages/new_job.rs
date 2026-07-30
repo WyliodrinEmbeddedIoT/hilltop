@@ -17,6 +17,12 @@ pub struct JobDescription {
     pub stdout_artifact: bool,
     pub stderr_artifact: bool,
     pub artifacts: Vec<String>,
+    /// Path to the test application inside the job archive.
+    #[serde(default)]
+    pub test_app: Option<String>,
+    /// Expected application name in tockloader output.
+    #[serde(default)]
+    pub test_app_name: Option<String>,
 }
 
 impl TryParseMessage for NewJob {

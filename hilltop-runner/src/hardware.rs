@@ -261,4 +261,17 @@ impl HardwareDevice {
     pub fn bus_path(&self) -> &Path {
         &self.bus_path
     }
+
+    /// Return the probe-rs selector for this configured USB device.
+    ///
+    /// probe-rs accepts selectors in VID:PID:SERIAL form. The serial comes
+    /// from runner.json, so jobs do not need to guess an enumeration index.
+    pub fn probe_selector(&self) -> Option<String> {
+        Some(format!(
+            "{:04x}:{:04x}:{}",
+            self.descriptor.vendor_id_u16()?,
+            self.descriptor.product_id_u16()?,
+            self.descriptor.serial
+        ))
+    }
 }

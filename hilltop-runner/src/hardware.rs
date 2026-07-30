@@ -278,6 +278,10 @@ impl HardwareDevice {
         self.descriptor.tockloader_board.as_deref()
     }
 
+    pub fn tockloader_rs_board(&self) -> Option<&str> {
+        self.descriptor.tockloader_rs_board.as_deref()
+    }
+
     pub fn board_dir(&self) -> Option<&str> {
         self.descriptor.board_dir.as_deref()
     }

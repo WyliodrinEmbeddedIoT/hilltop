@@ -40,14 +40,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /opt/openocd /opt/openocd
 ENV PATH="/opt/openocd/bin:${PATH}"
 RUN mkdir -p /opt/openocd/share/openocd/scripts/board/jtag && \
-    ln -s ../nordic_nrf52840_dk.cfg /opt/openocd/share/openocd/scripts/board/jtag/nrf52840dk.cfg && \
-    ln -s ../nordic_nrf52_dk.cfg /opt/openocd/share/openocd/scripts/board/jtag/nrf52dk.cfg
+    { \
+      echo "source [find interface/jlink.cfg]"; \
+      echo "transport select swd"; \
+      echo "source [find target/nordic/nrf52.cfg]"; \
+    } > /opt/openocd/share/openocd/scripts/board/jtag/nrf52840dk.cfg && \
+    { \
+      echo "source [find interface/jlink.cfg]"; \
+      echo "transport select swd"; \
+      echo "source [find target/nordic/nrf52.cfg]"; \
+    } > /opt/openocd/share/openocd/scripts/board/jtag/nrf52dk.cfg
 
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-RUN cargo install --locked probe-rs-tools && \
-    cargo install --locked espflash
+RUN cargo install --locked probe-rs-tools
 
 ENV PIPX_HOME=/opt/pipx
 ENV PIPX_BIN_DIR=/usr/local/bin

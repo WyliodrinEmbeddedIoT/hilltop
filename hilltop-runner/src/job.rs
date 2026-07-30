@@ -212,6 +212,9 @@ impl Job {
                     device_descriptor.serial().to_string(),
                     device_descriptor.probe_rs_chip().map(str::to_string),
                     device_descriptor.tockloader_board().map(str::to_string),
+                    device_descriptor
+                        .tockloader_rs_board()
+                        .map(str::to_string),
                     device_descriptor.board_dir().map(str::to_string),
                     device_descriptor.flash_target().map(str::to_string),
                     device_descriptor.openocd_board().map(str::to_string),
@@ -244,6 +247,7 @@ impl Job {
                 serial,
                 probe_rs_chip,
                 tockloader_board,
+                tockloader_rs_board,
                 board_dir,
                 flash_target,
                 openocd_board,
@@ -257,6 +261,9 @@ impl Job {
                 }
                 if let Some(board) = tockloader_board {
                     container_environment.push(format!("HILLTOP_TOCKLOADER_BOARD={board}"));
+                }
+                if let Some(board) = tockloader_rs_board {
+                    container_environment.push(format!("HILLTOP_TOCKLOADER_RS_BOARD={board}"));
                 }
                 if let Some(board_dir) = board_dir {
                     container_environment.push(format!("HILLTOP_BOARD_DIR={board_dir}"));

@@ -14,8 +14,13 @@ RUN git clone https://github.com/openocd-org/openocd.git .
 RUN git submodule update --init --recursive
 
 RUN ./bootstrap && \
-    ./configure --prefix=/opt/openocd --enable-internal-jimtcl && \
-    make -j4 && \
+    ./configure \
+      --enable-internal-jimtcl \
+      --enable-ftdi \
+      --enable-jlink \
+      --enable-stlink \
+      --enable-cmsis-dap && \
+    make -j$(nproc) && \
     make install
 
 # ==========================================

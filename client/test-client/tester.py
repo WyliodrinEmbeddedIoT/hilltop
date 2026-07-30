@@ -273,8 +273,11 @@ async def run_client_session(source_id: str, client_jwt: str, job_description: d
 
 async def main() -> None:
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    default_job_description = os.path.join(script_dir, "..", "sample-jobs", "nrf52_blinky", "job.json")
-    default_job_data = os.path.join(script_dir, "..",  "sample-jobs", "nrf52_blinky.zip")
+    #default_job_description = os.path.join(script_dir, "..", "sample-jobs", "nrf52_blinky", "job.json")
+    #default_job_data = os.path.join(script_dir, "..",  "sample-jobs", "nrf52_blinky.zip")
+
+    default_job_description = os.path.join(script_dir, "..", "sample-jobs", "tockloader-rs.zip", "job.json")
+    default_job_data = os.path.join(script_dir, "..",  "sample-jobs", "tockloader-rs.zip")
 
     parser = argparse.ArgumentParser(description="Hilltop broker WebSocket tester.")
     parser.add_argument(

@@ -4,6 +4,12 @@ pub struct HilltopDeviceDescriptor {
     pub vendor_id: String,
     pub product_id: String,
     pub serial: String,
+    /// Optional target name passed to probe-rs.
+    #[serde(default)]
+    pub probe_rs_chip: Option<String>,
+    /// Optional board name passed to board-specific tools such as tockloader.
+    #[serde(default)]
+    pub tockloader_board: Option<String>,
 }
 
 impl HilltopDeviceDescriptor {

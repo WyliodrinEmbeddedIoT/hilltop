@@ -262,6 +262,22 @@ impl HardwareDevice {
         &self.bus_path
     }
 
+    pub fn device_name(&self) -> &str {
+        &self.descriptor.device_name
+    }
+
+    pub fn serial(&self) -> &str {
+        &self.descriptor.serial
+    }
+
+    pub fn probe_rs_chip(&self) -> Option<&str> {
+        self.descriptor.probe_rs_chip.as_deref()
+    }
+
+    pub fn tockloader_board(&self) -> Option<&str> {
+        self.descriptor.tockloader_board.as_deref()
+    }
+
     /// Return the probe-rs selector for this configured USB device.
     ///
     /// probe-rs accepts selectors in VID:PID:SERIAL form. The serial comes

@@ -254,6 +254,15 @@ impl Job {
                 hw_config.config_name
             );
         }
+        container_environment.push(format!("HILLTOP_BOARD_DIR={}", self.metadata.board_dir));
+        container_environment.push(format!("HILLTOP_TEST_APP={}", self.metadata.test_app));
+
+        if let Some(flash_target) = &self.metadata.flash_target {
+            container_environment.push(format!("HILLTOP_FLASH_TARGET={}", flash_target));
+        }
+        if let Some(test_app_name) = &self.metadata.test_app_name {
+            container_environment.push(format!("HILLTOP_TEST_APP_NAME={}", test_app_name));
+        }
 
         tracing::debug!(
             "Request to create container with tag {}, container name {}, user mounts {:?}, and devices {:?}",

@@ -12,6 +12,11 @@ pub struct JobMetadata {
     pub stderr_artifact: bool,
     #[serde(default)]
     pub artifacts: Vec<String>,
+
+    pub board_dir: String,
+    pub test_app: String,
+    pub flash_target: Option<String>,
+    pub test_app_name: Option<String>,
 }
 
 impl JobMetadata {

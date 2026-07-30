@@ -31,7 +31,9 @@ FROM debian:trixie-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libusb-1.0-0-dev libudev-dev pkg-config build-essential \
-    libhidapi-hidraw0 python3 git pipx curl ca-certificates udev \
+    libhidapi-dev libhidapi-hidraw0 libjaylink-dev libftdi1-dev \
+    autoconf automake libtool \
+    python3 git pipx curl ca-certificates udev \
     socat netcat-openbsd unzip make stlink-tools \
     && rm -rf /var/lib/apt/lists/*
 

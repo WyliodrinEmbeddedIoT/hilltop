@@ -243,6 +243,9 @@ pub async fn handle_next_job(
                     JobMetadataError::InvalidHardware { .. } => {
                         NewJobNack::invalid_hardware(job_identifier)
                     }
+                    JobMetadataError::ReservedEnvKey { .. } => {
+                        NewJobNack::reserved_env_key(job_identifier)
+                    }
                 };
 
                 socket_client.nack_new_job(nack).await?;
@@ -427,10 +430,36 @@ pub async fn handle_completed_job(
     }
 
     // TODO: change to while?
-    if let Some(job_idx) = pending_jobs
-        .iter()
-        .position(|j| j.can_start_job(docker).unwrap_or(false))
-    {
+    // fail off any pending jobs that can never start instead of leaving
+    // them stuck
+    let mut failed_indices = Vec::new();
+    let mut ready_idx = None;
+    for (idx, pending) in pending_jobs.iter().enumerate() {
+        match pending.can_start_job(docker) {
+            Ok(true) => {
+                ready_idx = Some(idx);
+                break;
+            }
+            Ok(false) => {}
+            Err(_) => failed_indices.push(idx),
+        }
+    }
+
+    for idx in failed_indices.into_iter().rev() {
+        let job = pending_jobs.remove(idx);
+        tracing::warn!(
+            "Pending job {} can no longer be started; marking as failed",
+            job.broker_job_identifier
+        );
+        to_comms
+            .send(ExecNodeMessage::JobFailed {
+                job_identifier: job.broker_job_identifier.clone(),
+                reason: "Hardware configuration is no longer available".to_string(),
+            })
+            .await?;
+    }
+
+    if let Some(job_idx) = ready_idx {
         let job = pending_jobs.remove(job_idx);
         tracing::info!(
             "Starting pending job {} as resources are now available",

@@ -212,9 +212,7 @@ impl Job {
                     device_descriptor.serial().to_string(),
                     device_descriptor.probe_rs_chip().map(str::to_string),
                     device_descriptor.tockloader_board().map(str::to_string),
-                    device_descriptor
-                        .tockloader_rs_board()
-                        .map(str::to_string),
+                    device_descriptor.tockloader_rs_board().map(str::to_string),
                     device_descriptor.board_dir().map(str::to_string),
                     device_descriptor.flash_target().map(str::to_string),
                     device_descriptor.openocd_board().map(str::to_string),
@@ -262,8 +260,7 @@ impl Job {
                 board_dir,
                 flash_target,
                 openocd_board,
-            )) =
-                passthrough_device_metadata.first()
+            )) = passthrough_device_metadata.first()
             {
                 container_environment.push(format!("HILLTOP_BOARD={device_name}"));
                 container_environment.push(format!("HILLTOP_DEVICE_SERIAL={serial}"));
@@ -283,8 +280,7 @@ impl Job {
                     container_environment.push(format!("HILLTOP_FLASH_TARGET={flash_target}"));
                 }
                 if let Some(openocd_board) = openocd_board {
-                    container_environment
-                        .push(format!("HILLTOP_OPENOCD_BOARD={openocd_board}"));
+                    container_environment.push(format!("HILLTOP_OPENOCD_BOARD={openocd_board}"));
                 }
             }
         } else if probe_selectors.len() > 1 {
@@ -292,15 +288,6 @@ impl Job {
                 "Hardware configuration '{}' contains multiple passthrough devices; not setting HILLTOP_PROBE_SELECTOR",
                 hw_config.config_name
             );
-        }
-        container_environment.push(format!("HILLTOP_BOARD_DIR={}", self.metadata.board_dir));
-        container_environment.push(format!("HILLTOP_TEST_APP={}", self.metadata.test_app));
-
-        if let Some(flash_target) = &self.metadata.flash_target {
-            container_environment.push(format!("HILLTOP_FLASH_TARGET={}", flash_target));
-        }
-        if let Some(test_app_name) = &self.metadata.test_app_name {
-            container_environment.push(format!("HILLTOP_TEST_APP_NAME={}", test_app_name));
         }
 
         if let Some(test_app) = &self.metadata.test_app {

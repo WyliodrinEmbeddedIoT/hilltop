@@ -3,5 +3,8 @@
     "hardware": "nrf52840",
     "stdout_artifact": true,
     "stderr_artifact": true,
-    "artifacts": []
+    "artifacts": [],
+    "env": {
+        "PROBE_RS_CHIP": "nRF52840_xxAA"
+    }
 }

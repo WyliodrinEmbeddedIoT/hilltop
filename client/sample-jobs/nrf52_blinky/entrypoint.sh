@@ -12,9 +12,14 @@ if [[ -z "${HILLTOP_PROBE_SELECTOR:-}" ]]; then
     exit 1
 fi
 
+if [[ -z "${PROBE_RS_CHIP:-}" ]]; then
+    echo "PROBE_RS_CHIP was not provided in job.json's env" >&2
+    exit 1
+fi
+
 set +e
 timeout 20s probe-rs run \
-    --chip nRF52840_xxAA \
+    --chip "$PROBE_RS_CHIP" \
     --probe "$HILLTOP_PROBE_SELECTOR" \
     target/thumbv7em-none-eabi/release/nrf52_blinky
 status=$?

@@ -1,6 +1,20 @@
+use std::collections::HashMap;
+
 use socket_protocol::messages::new_job::JobDescription;
 
 use crate::{config::RunnerConfig, job::error::JobMetadataError};
+
+/// Env var names the runner sets itself from physical device enumeration.
+/// Clients cannot know these ahead of time (they depend on which runner and
+/// which physical device instance the job lands on), so `env` is not allowed
+/// to override them.
+const RESERVED_ENV_KEYS: &[&str] = &[
+    "HILLTOP_PROBE_SELECTOR",
+    "HILLTOP_BOARD",
+    "HILLTOP_DEVICE_SERIAL",
+    "HILLTOP_TEST_APP",
+    "HILLTOP_TEST_APP_NAME",
+];
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct JobMetadata {
@@ -12,11 +26,18 @@ pub struct JobMetadata {
     pub stderr_artifact: bool,
     #[serde(default)]
     pub artifacts: Vec<String>,
-
-    pub board_dir: String,
-    pub test_app: String,
-    pub flash_target: Option<String>,
+    /// Path to the test application inside the job archive.
+    #[serde(default)]
+    pub test_app: Option<String>,
+    /// Expected application name in tockloader output.
+    #[serde(default)]
     pub test_app_name: Option<String>,
+    /// Arbitrary env vars the client wants set in the job container (board
+    /// name, chip name, flash target, or anything else specific to whatever
+    /// tool the client's entrypoint.sh runs). The runner does not interpret
+    /// these keys or values at all.
+    #[serde(default)]
+    pub env: HashMap<String, String>,
 }
 
 impl JobMetadata {
@@ -50,6 +71,9 @@ impl JobMetadata {
             stdout_artifact: job_description.stdout_artifact,
             stderr_artifact: job_description.stderr_artifact,
             artifacts: job_description.artifacts,
+            test_app: job_description.test_app,
+            test_app_name: job_description.test_app_name,
+            env: job_description.env,
         };
 
         metdata.validate(runner_config)?;
@@ -66,6 +90,16 @@ impl JobMetadata {
         if runner_config.get_hardware(&self.hardware).is_none() {
             return Err(JobMetadataError::InvalidHardware {
                 hardware: self.hardware.clone(),
+            });
+        }
+
+        if let Some(reserved_key) = self
+            .env
+            .keys()
+            .find(|k| RESERVED_ENV_KEYS.contains(&k.as_str()))
+        {
+            return Err(JobMetadataError::ReservedEnvKey {
+                key: reserved_key.clone(),
             });
         }
 

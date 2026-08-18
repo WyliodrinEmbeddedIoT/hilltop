@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 use super::TryParseMessage;
@@ -17,6 +19,15 @@ pub struct JobDescription {
     pub stdout_artifact: bool,
     pub stderr_artifact: bool,
     pub artifacts: Vec<String>,
+    /// Path to the test application inside the job archive.
+    #[serde(default)]
+    pub test_app: Option<String>,
+    /// Expected application name in tockloader output.
+    #[serde(default)]
+    pub test_app_name: Option<String>,
+    /// Arbitrary client-declared env vars for the job container.
+    #[serde(default)]
+    pub env: HashMap<String, String>,
 }
 
 impl TryParseMessage for NewJob {
@@ -92,6 +103,17 @@ impl NewJobNack {
             response: "NEW_JOB_NACK",
             error_code: 1002,
             message: "Invalid image.",
+            data: NewJobNackData {
+                job_identifier: job_identifier.into(),
+            },
+        }
+    }
+
+    pub fn reserved_env_key(job_identifier: impl Into<String>) -> Self {
+        Self {
+            response: "NEW_JOB_NACK",
+            error_code: 1004,
+            message: "Job env declares a key reserved for the runner.",
             data: NewJobNackData {
                 job_identifier: job_identifier.into(),
             },

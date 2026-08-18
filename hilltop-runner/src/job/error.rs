@@ -8,6 +8,8 @@ pub enum JobMetadataError {
     InvalidImage { image: String },
     #[error("Job references non-existent hardware configuration '{hardware}'")]
     InvalidHardware { hardware: String },
+    #[error("Job env declares reserved key '{key}', which is set by the runner")]
+    ReservedEnvKey { key: String },
 }
 
 /// Errors that occur during job execution

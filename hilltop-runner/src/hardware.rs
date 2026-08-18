@@ -73,6 +73,20 @@ impl HardwareManager {
 
             let mut all_devices_available = true; //
 
+            let passthrough_count = hw_config
+                .devices
+                .iter()
+                .filter(|d| d.device_passthrough == Some(true))
+                .count();
+            if passthrough_count > 1 {
+                anyhow::bail!(
+                    "Hardware config '{}' declares {} passthrough devices; only a single \
+                     passthrough device per hardware config is supported",
+                    hw_config.config_name,
+                    passthrough_count
+                );
+            }
+
             for device_ref in hw_config.devices.iter() {
                 let device_found = devices
                     .iter()
@@ -212,6 +226,7 @@ impl HardwareManager {
 pub struct HardwareDevice {
     descriptor: HilltopDeviceDescriptor,
     dev_path: Option<PathBuf>,
+    hidraw_paths: Vec<PathBuf>,
     bus_path: PathBuf,
     in_use: bool,
 }
@@ -230,6 +245,7 @@ impl HardwareDevice {
         let sys_path = device_info.sysfs_path().canonicalize().unwrap();
 
         let mut dev_path: Option<PathBuf> = None;
+        let mut hidraw_paths = Vec::new();
 
         for entry in std::fs::read_dir(Path::new("/sys/class/tty"))? {
             let entry = entry?;
@@ -246,9 +262,28 @@ impl HardwareDevice {
             }
         }
 
+        // HID-based tools such as tockloader-rs use /dev/hidraw rather than
+        // the USB bus node used by probe-rs. Find all HID interfaces belonging
+        // to this physical USB device so the runner can pass them through too.
+        if let Ok(entries) = std::fs::read_dir(Path::new("/sys/class/hidraw")) {
+            for entry in entries {
+                let entry = entry?;
+                let symlink_path = entry.path();
+                let resolved = symlink_path.canonicalize()?;
+
+                if resolved.starts_with(&sys_path) {
+                    let dev_name = symlink_path
+                        .file_name()
+                        .ok_or_else(|| anyhow::anyhow!("Invalid hidraw sysfs entry"))?;
+                    hidraw_paths.push(Path::new("/dev").join(dev_name));
+                }
+            }
+        }
+
         Ok(Self {
             descriptor,
             dev_path,
+            hidraw_paths,
             bus_path,
             in_use: false,
         })
@@ -262,20 +297,16 @@ impl HardwareDevice {
         &self.bus_path
     }
 
+    pub fn hidraw_paths(&self) -> &[PathBuf] {
+        &self.hidraw_paths
+    }
+
     pub fn device_name(&self) -> &str {
         &self.descriptor.device_name
     }
 
     pub fn serial(&self) -> &str {
         &self.descriptor.serial
-    }
-
-    pub fn probe_rs_chip(&self) -> Option<&str> {
-        self.descriptor.probe_rs_chip.as_deref()
-    }
-
-    pub fn tockloader_board(&self) -> Option<&str> {
-        self.descriptor.tockloader_board.as_deref()
     }
 
     /// Return the probe-rs selector for this configured USB device.

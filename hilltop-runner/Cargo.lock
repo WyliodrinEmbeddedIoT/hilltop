@@ -732,6 +732,7 @@ dependencies = [
  "api-1-54",
  "broker-client",
  "bytes",
+ "futures-util",
  "nusb",
  "reqwest",
  "serde",

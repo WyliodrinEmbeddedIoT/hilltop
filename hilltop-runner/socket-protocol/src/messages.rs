@@ -6,6 +6,7 @@ pub mod goodbye;
 pub mod hello_runner;
 pub mod job_error;
 pub mod job_finished;
+pub mod job_log;
 pub mod job_started;
 pub mod new_job;
 

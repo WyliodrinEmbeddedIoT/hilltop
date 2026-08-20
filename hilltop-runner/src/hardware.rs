@@ -242,7 +242,10 @@ impl HardwareDevice {
             device_info.device_address()
         ));
 
-        let sys_path = device_info.sysfs_path().canonicalize().unwrap();
+        #[cfg(target_os = "linux")]
+        let sys_path = device_info.sysfs_path().canonicalize().unwrap_or_default();
+        #[cfg(not(target_os = "linux"))]
+        let sys_path = PathBuf::new();
 
         let mut dev_path: Option<PathBuf> = None;
         let mut hidraw_paths = Vec::new();

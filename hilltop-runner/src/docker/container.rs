@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use bytes::Buf;
 use tokio::io::AsyncReadExt;
 
 use crate::api::apis::configuration::Configuration;
@@ -8,7 +9,7 @@ use crate::api::models::DeviceMapping;
 use crate::api::models::{ContainerCreateRequest, HostConfig};
 use crate::api::models::{Mount, MountType};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Container {
     id: String,
 }
@@ -26,11 +27,27 @@ pub struct LogLine {
     pub message: String,
 }
 
+#[derive(Debug)]
+pub struct LogChunk {
+    pub stream_type: StreamType,
+    pub data: String,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum StreamType {
     Stdin,
     Stdout,
     Stderr,
+}
+
+impl StreamType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            StreamType::Stdin => "stdin",
+            StreamType::Stdout => "stdout",
+            StreamType::Stderr => "stderr",
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -232,6 +249,142 @@ impl Container {
         Ok(true)
     }
 
+    /// Stream logs from container with a 4KB / 250ms buffer
+    pub async fn stream_logs(
+        &self,
+        api_engine_config: &Configuration,
+        sender: tokio::sync::mpsc::Sender<LogChunk>,
+    ) -> anyhow::Result<()> {
+        use futures_util::StreamExt;
+
+        tracing::debug!("Starting log stream from container {}...", self.id);
+
+        let logs = container_api::container_logs(
+            api_engine_config,
+            &self.id,
+            Some(true),
+            Some(true),
+            Some(true),
+            None,
+            None,
+            None,
+            None,
+        )
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to stream container logs: {:?}", e))?;
+
+        let mut stream = logs.bytes_stream();
+        let mut raw_buffer = bytes::BytesMut::new();
+
+        let mut stdout_buf = String::new();
+        let mut stderr_buf = String::new();
+        let mut interval = tokio::time::interval(std::time::Duration::from_millis(250));
+
+        loop {
+            tokio::select! {
+                maybe_chunk = stream.next() => {
+                    match maybe_chunk {
+                        Some(Ok(chunk_bytes)) => {
+                            raw_buffer.extend_from_slice(&chunk_bytes);
+
+                            while raw_buffer.len() >= 8 {
+                                let stream_byte = raw_buffer[0];
+                                let size = u32::from_be_bytes([
+                                    raw_buffer[4],
+                                    raw_buffer[5],
+                                    raw_buffer[6],
+                                    raw_buffer[7],
+                                ]) as usize;
+
+                                if raw_buffer.len() < 8 + size {
+                                    break;
+                                }
+
+                                raw_buffer.advance(8);
+                                let payload = raw_buffer.split_to(size);
+                                let message = String::from_utf8_lossy(&payload);
+
+                                match stream_byte {
+                                    0x1 => {
+                                        stdout_buf.push_str(&message);
+                                        if stdout_buf.len() >= 4096 {
+                                            let chunk = std::mem::take(&mut stdout_buf);
+                                            let _ = sender
+                                                .send(LogChunk {
+                                                    stream_type: StreamType::Stdout,
+                                                    data: chunk,
+                                                })
+                                                .await;
+                                        }
+                                    }
+                                    0x2 => {
+                                        stderr_buf.push_str(&message);
+                                        if stderr_buf.len() >= 4096 {
+                                            let chunk = std::mem::take(&mut stderr_buf);
+                                            let _ = sender
+                                                .send(LogChunk {
+                                                    stream_type: StreamType::Stderr,
+                                                    data: chunk,
+                                                })
+                                                .await;
+                                        }
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        }
+                        Some(Err(e)) => {
+                            tracing::debug!("Log stream closed or error: {:?}", e);
+                            break;
+                        }
+                        None => break,
+                    }
+                }
+                _ = interval.tick() => {
+                    if !stdout_buf.is_empty() {
+                        let chunk = std::mem::take(&mut stdout_buf);
+                        let _ = sender
+                            .send(LogChunk {
+                                stream_type: StreamType::Stdout,
+                                data: chunk,
+                            })
+                            .await;
+                    }
+                    if !stderr_buf.is_empty() {
+                        let chunk = std::mem::take(&mut stderr_buf);
+                        let _ = sender
+                            .send(LogChunk {
+                                stream_type: StreamType::Stderr,
+                                data: chunk,
+                            })
+                            .await;
+                    }
+                }
+            }
+        }
+
+        if !stdout_buf.is_empty() {
+            let chunk = std::mem::take(&mut stdout_buf);
+            let _ = sender
+                .send(LogChunk {
+                    stream_type: StreamType::Stdout,
+                    data: chunk,
+                })
+                .await;
+        }
+        if !stderr_buf.is_empty() {
+            let chunk = std::mem::take(&mut stderr_buf);
+            let _ = sender
+                .send(LogChunk {
+                    stream_type: StreamType::Stderr,
+                    data: chunk,
+                })
+                .await;
+        }
+
+        Ok(())
+    }
+
     /// Get container logs
     pub async fn get_logs(
         &self,
@@ -257,16 +410,6 @@ impl Container {
             .text()
             .await
             .map_err(|e| anyhow::anyhow!("Failed to read logs: {:?}", e))?;
-
-        // Format:
-        //
-        // [STREAM_TYPE] 0x0 0x0 0x0 [SIZE(0..4)] [MESSAGE(0..SIZE)]
-        //
-        // - STREAM_TYPE is 1 byte: 0x0 for stdin, 0x1 for stdout, 0x2 for stderr
-        // - SIZE is a 4 byte big-endian integer indicating the size of the message
-        // - MESSAGE is the actual log message of length SIZE
-        // See:
-        // https://docs.docker.com/reference/api/engine/version/v1.54/#tag/Container/operation/ContainerAttach
 
         let reader = std::io::Cursor::new(log_text.as_bytes());
         let mut reader = tokio::io::BufReader::new(reader);

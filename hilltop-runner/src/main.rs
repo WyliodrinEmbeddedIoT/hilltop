@@ -255,6 +255,7 @@ pub async fn handle_next_job(
 
     // Get job data
 
+    // TODO: maybe return this as job failure instead?
     let job_data = broker_client
         .download_job_source(&job_request.job_data_identifier)
         .await
@@ -282,22 +283,6 @@ pub async fn handle_msg_from_exec_node(
             socket_client
                 .job_started(JobStarted::new(&job_identifier))
                 .await?;
-        }
-        ExecNodeMessage::JobLogChunk {
-            job_identifier,
-            stream,
-            log_data,
-        } => {
-            if let Err(e) = socket_client
-                .job_log(socket_protocol::messages::job_log::JobLog::new(
-                    &job_identifier,
-                    &stream,
-                    &log_data,
-                ))
-                .await
-            {
-                tracing::warn!("Failed to send JOB_LOG to broker socket: {:?}", e);
-            }
         }
         ExecNodeMessage::UploadArtifact {
             job_identifier,
@@ -444,6 +429,9 @@ pub async fn handle_completed_job(
         }
     }
 
+    // TODO: change to while?
+    // fail off any pending jobs that can never start instead of leaving
+    // them stuck
     let mut failed_indices = Vec::new();
     let mut ready_idx = None;
     for (idx, pending) in pending_jobs.iter().enumerate() {
@@ -513,11 +501,9 @@ pub async fn start_job_execution(
         .await?;
 
     tracing::error!(" ---/// Measurement Checkpoint 2 (Job Started");
-    let api_config = docker.api_config().clone();
-    let to_comms_clone = to_comms.clone();
     let _handle = running_jobs.spawn(async move {
         let job_broker_id = job.broker_job_identifier.clone();
-        job.wait_for_completion(api_config, to_comms_clone)
+        job.wait_for_completion()
             .await
             .map_err(|e| (job_broker_id, e))
             .map(|_| job)
@@ -534,11 +520,6 @@ pub enum CommNodeMessage {
 pub enum ExecNodeMessage {
     JobStarted {
         job_identifier: String,
-    },
-    JobLogChunk {
-        job_identifier: String,
-        stream: String,
-        log_data: String,
     },
     UploadArtifact {
         job_identifier: String,

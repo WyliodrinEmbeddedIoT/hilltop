@@ -12,7 +12,6 @@ use crate::messages::{
     hello_runner::HelloRunner,
     job_error::JobError,
     job_finished::JobFinished,
-    job_log::JobLog,
     job_started::JobStarted,
     new_job::{NewJob, NewJobAck, NewJobNack},
 };
@@ -47,6 +46,8 @@ impl SocketProtocolClient {
     pub async fn connect(url: &str) -> tungstenite::Result<Self> {
         let request = url.into_client_request()?;
         let (stream, _response) = connect_async(request).await?;
+
+        // dbg!(response);
 
         Ok(SocketProtocolClient { stream })
     }
@@ -106,11 +107,6 @@ impl SocketProtocolClient {
 
     pub async fn job_error(&mut self, job_error: JobError) -> Result<(), SocketProtocolError> {
         let (resp, data) = self.send_message(&job_error).await?;
-        GenericResponse::ok_or_err(resp, &data)
-    }
-
-    pub async fn job_log(&mut self, job_log: JobLog) -> Result<(), SocketProtocolError> {
-        let (resp, data) = self.send_message(&job_log).await?;
         GenericResponse::ok_or_err(resp, &data)
     }
 

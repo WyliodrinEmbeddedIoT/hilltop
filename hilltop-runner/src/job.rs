@@ -2,10 +2,8 @@ use std::path::{Path, PathBuf};
 
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::net::{UnixListener, UnixStream};
-use tokio::sync::mpsc;
 use uuid::Uuid;
 
-use crate::api::apis::configuration::Configuration;
 use crate::docker::DockerManager;
 use crate::docker::container::{Container, LogLine, UserDevice, UserMount};
 use crate::job::error::{HardwareError, JobExecutionError};
@@ -98,6 +96,9 @@ impl Job {
             return Ok(false);
         }
 
+        // if the config isn't known at all, the device is missing (or the
+        // config got rejected at startup) - that's never going to fix
+        // itself, so fail now instead of retrying forever
         if docker
             .hardware_manager()
             .get_configuration(&self.metadata.hardware)
@@ -196,8 +197,10 @@ impl Job {
             })?
             .clone();
 
+        // HardwareManager::new already rejects configs with >1 passthrough
+        // device, so there's only ever one to worry about here
         let mut user_devices = Vec::new();
-        let mut passthrough_device: Option<(String, String, String)> = None;
+        let mut passthrough_device: Option<(String, String, String)> = None; // (device_name, serial, probe_selector)
         for device_ref in hw_config.devices.iter() {
             let device_descriptor = docker
                 .hardware_manager_mut()
@@ -250,6 +253,8 @@ impl Job {
             }
         }
 
+        // only what depends on this runner's actual hardware goes here,
+        // everything else comes from job.json's env
         let mut container_environment = Vec::new();
         if let Some((device_name, serial, probe_selector)) = &passthrough_device {
             container_environment.push(format!("HILLTOP_PROBE_SELECTOR={probe_selector}"));
@@ -336,27 +341,12 @@ impl Job {
         Ok(())
     }
 
-    /// Wait for container to complete while streaming logs
-    pub async fn wait_for_completion(
-        &mut self,
-        api_config: Configuration,
-        to_comms: mpsc::Sender<crate::ExecNodeMessage>,
-    ) -> Result<(), JobExecutionError> {
+    /// Wait for container to complete
+    pub async fn wait_for_completion(&mut self) -> Result<(), JobExecutionError> {
         if self.state != JobState::Running {
             tracing::error!("Cannot wait for completion in state: {:?}", self.state);
             return Err(JobExecutionError::InternalError);
         }
-
-        let (log_tx, mut log_rx) = mpsc::channel::<crate::docker::container::LogChunk>(100);
-        let log_handle = if let Some(container) = self.container.clone() {
-            Some(tokio::spawn(async move {
-                if let Err(e) = container.stream_logs(&api_config, log_tx).await {
-                    tracing::debug!("Log streaming finished/stopped: {:?}", e);
-                }
-            }))
-        } else {
-            None
-        };
 
         let stream = self
             .container_socket
@@ -369,84 +359,46 @@ impl Job {
         let mut reader = BufReader::new(stream);
         let mut line = Vec::new();
 
-        let res = loop {
+        loop {
             line.clear();
 
-            tokio::select! {
-                maybe_chunk = log_rx.recv() => {
-                    if let Some(chunk) = maybe_chunk {
-                        let _ = to_comms
-                            .send(crate::ExecNodeMessage::JobLogChunk {
-                                job_identifier: self.broker_job_identifier.clone(),
-                                stream: chunk.stream_type.as_str().to_string(),
-                                log_data: chunk.data,
-                            })
-                            .await;
-                    }
-                }
-                read_res = reader.read_until(b'\n', &mut line) => {
-                    let bytes_read = match read_res {
-                        Ok(b) => b,
-                        Err(e) => {
-                            tracing::error!("Error reading from socket: {}", e);
-                            break Err(JobExecutionError::InternalError);
-                        }
-                    };
+            let bytes_read = reader.read_until(b'\n', &mut line).await.map_err(|e| {
+                tracing::error!("Error reading from socket: {}", e);
+                JobExecutionError::InternalError
+            })?;
 
-                    if bytes_read == 0 {
-                        tracing::info!("Container has closed the socket, assuming completion");
-                        break Ok(());
-                    }
-
-                    let msg = String::from_utf8_lossy(&line);
-                    let job_message = match serde_json::from_str::<JobMessage>(&msg) {
-                        Ok(m) => m,
-                        Err(e) => {
-                            tracing::error!(
-                                "Failed to parse message from container: {}, error: {}",
-                                msg,
-                                e
-                            );
-                            break Err(JobExecutionError::InternalError);
-                        }
-                    };
-
-                    tracing::debug!("Received message from container: {:?}", job_message);
-
-                    if job_message.status == JobMessageStatus::Error {
-                        tracing::warn!("Received error message from container: {:?}", job_message);
-                        break Err(JobExecutionError::JobSetupError(
-                            job_message.message.unwrap_or("unknown error".to_string()),
-                        ));
-                    }
-
-                    if job_message.status == JobMessageStatus::ContainerCompleted {
-                        tracing::info!("Received container completed message");
-                        break Ok(());
-                    }
-                }
+            if bytes_read == 0 {
+                tracing::info!("Container has closed the socket, assuming completion");
+                break;
             }
-        };
 
-        if let Some(handle) = log_handle {
-            handle.abort();
+            let msg = String::from_utf8_lossy(&line);
+            let job_message = serde_json::from_str::<JobMessage>(&msg).map_err(|e| {
+                tracing::error!(
+                    "Failed to parse message from container: {}, error: {}",
+                    msg,
+                    e
+                );
+                JobExecutionError::InternalError
+            })?;
+
+            tracing::debug!("Received message from container: {:?}", job_message);
+
+            if job_message.status == JobMessageStatus::Error {
+                tracing::warn!("Received error message from container: {:?}", job_message);
+                return Err(JobExecutionError::JobSetupError(
+                    job_message.message.unwrap_or("unknown error".to_string()),
+                ));
+            }
+
+            if job_message.status == JobMessageStatus::ContainerCompleted {
+                tracing::info!("Received container completed message");
+                break;
+            }
         }
 
-        while let Ok(chunk) = log_rx.try_recv() {
-            let _ = to_comms
-                .send(crate::ExecNodeMessage::JobLogChunk {
-                    job_identifier: self.broker_job_identifier.clone(),
-                    stream: chunk.stream_type.as_str().to_string(),
-                    log_data: chunk.data,
-                })
-                .await;
-        }
-
-        if res.is_ok() {
-            self.state = JobState::Completed;
-        }
-
-        res
+        self.state = JobState::Completed;
+        Ok(())
     }
 
     pub async fn get_logs(
@@ -477,6 +429,13 @@ impl Job {
             tracing::error!("Cannot get artifacts in state: {:?}", self.state);
             return Err(JobExecutionError::InternalError);
         }
+
+        // We have two special artifacts:
+        // - /artifacts/stdout.log (if job config has stdout capture enabled)
+        // - /artifacts/stderr.log (if job config has stderr capture enabled)
+        //
+        // Then, we have the remaining files in /workspace/ which are defined in
+        // the job via relative path to it.
 
         let mut artifact_paths = Vec::new();
 
